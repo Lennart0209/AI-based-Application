@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatBot: PDF Analyse</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #e3f2fd; } /* helles Blau */
+    .card { border: none; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn-primary { border-radius: .75rem; padding: .5rem 1.5rem; }
+    .form-control { border-radius: .75rem; }
+  </style>
+</head>
+<body class="d-flex align-items-center vh-100">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="card p-4 text-center">
+          <h1 class="mb-3">ChatBot: PDF Analyse</h1>
+          <p class="text-muted mb-4">Lade hier dein PDF hoch und starte die Analyse.</p>
+          {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+          {% endif %}
+          <form method="post" enctype="multipart/form-data">
+            <input class="form-control mb-3" type="file" name="file" accept="application/pdf" required>
+            <button class="btn btn-primary w-100">PDF hochladen</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
