@@ -3,69 +3,176 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PDF Q&A – Chat</title>
+  <title>ChatBot: PDF Analyse</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background: #e3f2fd; /* hellblau */ }
-    .chat-container { max-width: 900px; margin: 3rem auto; display: flex; flex-direction: column; align-items: center; }
-    .chat-card { width: 100%; border: none; border-radius: 1rem; box-shadow: 0 8px 24px rgba(0,0,0,0.1); overflow: hidden; }
-    .chat-header { background: #1976d2; color: #fff; padding: 1rem 1.5rem; }
-    #chat-box { height: 60vh; overflow-y: auto; padding: 1.5rem; background: #fff; }
-    .message { margin-bottom: 1rem; display: flex; }
-    .message.user { justify-content: flex-end; }
-    .message.assistant { justify-content: flex-start; }
-    .message .text {
-      display: inline-block;
-      padding: .75rem 1rem;
-      border-radius: 1rem;
-      max-width: 70%;
-      line-height: 1.4;
+    body { background: #e3f2fd; font-family: 'Segoe UI', sans-serif; }
+    .pdf-viewer {
+      border: 1px solid #ccc;
+      height: 45vh;
+      overflow: auto;
+      position: relative;
+      margin-bottom: 1rem;
+      border-radius: .5rem;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     }
-    .message.user .text { background: #bbdefb; color: #0d47a1; }
-    .message.assistant .text { background: #f5f5f5; color: #333; }
-    .chat-footer { background: #f1f1f1; padding: 1rem 1.5rem; }
-    .form-control { border-radius: 2rem; padding: .75rem 1rem; }
-    .btn-send { background: #1976d2; border: none; border-radius: 2rem; padding: .75rem 1.5rem; color: #fff; transition: background .3s; }
-    .btn-send:hover { background: #155fa0; }
+    .pdf-viewer embed { width: 100%; height: 100%; border-radius: .5rem; }
+    .pdf-title {
+      position: absolute; top: .5rem; left: .5rem;
+      background: #1976d2; color: #fff;
+      padding: .25rem .75rem; border-radius: .5rem;
+      font-weight: 600; font-size: .9rem;
+    }
+    .chat-header {
+      color: #1976d2;
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .chat-box {
+      height: 70vh; overflow-y: auto; padding: 1.5rem;
+      background: #fff; border-radius: .75rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .message { margin-bottom: 1rem; }
+    .message.user .text { background: #e3f2fd; text-align: right; }
+    .message.assistant .text { background: #f5f7fa; text-align: left; }
+    .text {
+      display: inline-block; padding: .75rem 1rem;
+      border-radius: 1rem; max-width: 75%;
+      font-size: .95rem; line-height: 1.4;
+    }
+    .form-control, .btn-send, .btn-download, .btn-back {
+      border-radius: 2rem; font-size: .95rem;
+    }
+    .btn-send {
+      background: #1976d2; color: #fff;
+      border: none; padding: .75rem 1.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .btn-download, .btn-back {
+      background: #6c757d; color: #fff;
+      padding: .5rem 1rem; margin-left: .5rem;
+    }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-card card">
-      <div class="chat-header d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">Chat mit deinem PDF</h2>
+  <div class="container-fluid p-3">
+    <div class="row gx-4">
+      <!-- Links: Upload + Viewer -->
+      <div class="col-lg-7">
+        <div class="row mb-3 gx-2">
+          <div class="col-sm-6">
+            <label for="file1" class="form-label">PDF 1 neu wählen</label>
+            <input type="file" id="file1" class="form-control" accept="application/pdf">
+          </div>
+          <div class="col-sm-6">
+            <label for="file2" class="form-label">PDF 2 hochladen</label>
+            <input type="file" id="file2" class="form-control" accept="application/pdf">
+          </div>
+        </div>
+        <div class="pdf-viewer">
+          <div class="pdf-title">PDF 1: {{ session.filename }}</div>
+          <embed id="pdf1" src="{{ url_for('pdf_view', filename=session.filename) }}" type="application/pdf">
+        </div>
+        <div class="pdf-viewer {% if not session.filename2 %}d-none{% endif %}" id="viewer2">
+          <div class="pdf-title">PDF 2: {{ session.filename2 }}</div>
+          <embed id="pdf2" src="{% if session.filename2 %}{{ url_for('pdf_view', filename=session.filename2) }}{% endif %}" type="application/pdf">
+        </div>
       </div>
-      <div id="chat-box" class="card-body"></div>
-      <div class="chat-footer card-footer">
-        <form id="chat-form" class="d-flex">
-          <input id="query" class="form-control me-2" type="text" placeholder="Frage eingeben..." required>
-          <button class="btn btn-send">Senden</button>
+
+      <!-- Rechts: Chat -->
+      <div class="col-lg-5 d-flex flex-column">
+        <div class="chat-header">Chat</div>
+        <div id="chat-box" class="chat-box flex-grow-1 mb-3">
+          {# Vorhandene History beim Laden anzeigen #}
+          {% for m in history %}
+            <div class="message {{ m.role == 'User' and 'user' or 'assistant' }}">
+              <div class="text">{{ m.text.replace('\n','<br>')|safe }}</div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label me-3">Quelle:</label>
+          <label class="me-2"><input type="radio" name="source" value="1" checked> PDF 1</label>
+          <label class="me-2"><input type="radio" name="source" value="2"> PDF 2</label>
+          <label><input type="radio" name="source" value="both"> Beide</label>
+        </div>
+
+        <form id="chat-form" class="d-flex mb-2">
+          <input id="query" class="form-control me-2" type="text" placeholder="Stelle eine Frage …" required>
+          <button class="btn-send">Senden</button>
         </form>
+
+        <!-- Untere Leiste: Download + Zurück -->
+        <div class="text-end">
+          <a href="{{ url_for('download_chat') }}" class="btn btn-download">Chatprotokoll herunterladen</a>
+          <a href="{{ url_for('upload') }}" class="btn btn-back">Zurück zum Startbildschirm</a>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    async function sendQuery(e) {
+    const file1   = document.getElementById('file1');
+    const file2   = document.getElementById('file2');
+    const pdf1    = document.getElementById('pdf1');
+    const pdf2    = document.getElementById('pdf2');
+    const viewer2 = document.getElementById('viewer2');
+    const radios  = document.getElementsByName('source');
+
+    file1.addEventListener('change', async e => {
+      const f = e.target.files[0]; if (!f) return;
+      pdf1.src = URL.createObjectURL(f);
+      await uploadPDF(f, '/upload');
+      location.reload();
+    });
+
+    file2.addEventListener('change', async e => {
+      const f = e.target.files[0]; if (!f) return;
+      pdf2.src = URL.createObjectURL(f);
+      viewer2.classList.remove('d-none');
+      await uploadPDF(f, '/upload2');
+      location.reload();
+    });
+
+    async function uploadPDF(file, endpoint) {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(endpoint, { method:'POST', body:fd });
+      if (!res.ok) alert('Upload fehlgeschlagen');
+    }
+
+    document.getElementById('chat-form').addEventListener('submit', async e => {
       e.preventDefault();
-      const q = document.getElementById('query').value;
-      if (!q) return;
+      const q   = document.getElementById('query').value;
+      const src = Array.from(radios).find(r => r.checked).value;
       const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({query: q})
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ query:q, source:src })
       });
-      const data = await res.json();
-      if (data.error) { alert(data.error); return; }
+      const { chat, error } = await res.json();
+      if (error) return alert(error);
       const box = document.getElementById('chat-box');
-      box.innerHTML = data.chat.map(m => {
-        const cls = m.role === 'User' ? 'user' : 'assistant';
-        return `<div class="message ${cls}"><div class="text">${m.text}</div></div>`;
+      box.innerHTML = chat.map(m => {
+        const htmlText = m.text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br>");
+        return `
+          <div class="message ${m.role === 'User' ? 'user' : 'assistant'}">
+            <div class="text">${htmlText}</div>
+          </div>
+        `;
       }).join('');
       box.scrollTop = box.scrollHeight;
       document.getElementById('query').value = '';
-    }
-    document.getElementById('chat-form').addEventListener('submit', sendQuery);
+    });
   </script>
 </body>
 </html>
