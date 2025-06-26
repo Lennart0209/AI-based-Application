@@ -1,33 +1,93 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <title>Dein PDF-Analyst</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ChatBot: PDF Analyse</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background: #e3f2fd; } /* helles Blau */
-    .card { border: none; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    .btn-primary { border-radius: .75rem; padding: .5rem 1.5rem; }
-    .form-control { border-radius: .75rem; }
+    body {
+      background: url('/static/background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; margin: 0; font-family: 'Segoe UI', sans-serif;
+    }
+    .upload-card {
+      background: rgba(255,255,255,0.9);
+      border-radius: 1rem; box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      max-width: 600px; width: 90%; overflow: hidden;
+    }
+    .upload-card .card-header {
+      background: #1976d2; color: #fff; text-align: center;
+      padding: 2rem 1rem;
+    }
+    .upload-card .card-header h1 { margin: 0; font-weight: 700; }
+    .upload-card .card-header p { margin: .5rem 0 0; font-weight: 300; }
+    .upload-card .card-body { padding: 2rem; }
+    .btn-upload { width: 100%; border-radius: .75rem; padding: .75rem; }
+    .pdf-list {
+      margin-top: 2rem;
+      max-height: 120px;
+      overflow-y: auto;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: .5rem;
+      padding: .75rem;
+    }
+    .pdf-list h5 {
+      margin-bottom: .75rem;
+      font-weight: 600;
+      color: #1976d2;
+    }
+    .pdf-item {
+      margin-bottom: .5rem;
+      font-size: .95rem;
+    }
+    .pdf-item a {
+      text-decoration: none;
+      color: #1976d2;
+      font-weight: 600;
+    }
   </style>
 </head>
-<body class="d-flex align-items-center vh-100">
-  <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-md-6">
-        <div class="card p-4 text-center">
-          <h1 class="mb-3">ChatBot: PDF Analyse</h1>
-          <p class="text-muted mb-4">Lade hier dein PDF hoch und starte die Analyse.</p>
-          {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-          {% endif %}
-          <form method="post" enctype="multipart/form-data">
-            <input class="form-control mb-3" type="file" name="file" accept="application/pdf" required>
-            <button class="btn btn-primary w-100">PDF hochladen</button>
-          </form>
+<body>
+  <div class="upload-card">
+    <div class="card-header">
+      <h1>Dein PDF-Analyst</h1>
+      <p>Lade eine oder zwei PDFs hoch, lasse sie analysieren und stelle Fragen oder vergleiche Dokumente direkt miteinander.</p>
+    </div>
+    <div class="card-body text-center">
+      <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+        <div class="mb-3">
+          <input class="form-control" type="file" name="file" accept="application/pdf" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-upload">PDF hochladen</button>
+      </form>
+      {% if error %}
+        <div class="alert alert-danger mt-3">{{ error }}</div>
+      {% endif %}
+
+      {% if session.histories %}
+      <div class="pdf-list">
+        <h5>Chat-Historie</h5>
+        <div class="row g-2">
+          {% for fname, msgs in session.histories.items() %}
+          <div class="col-6">
+            <div class="card p-2">
+              <div class="card-body p-2">
+                <a href="{{ url_for('chat') }}?pdf={{ fname }}" class="stretched-link">
+                  {{ fname }}
+                </a>
+                <div class="text-muted small">
+                  {{ msgs|length }} Nachrichten
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
         </div>
       </div>
+      {% endif %}
     </div>
   </div>
 </body>
