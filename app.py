@@ -1,168 +1,235 @@
 import os
 import tempfile
 import uuid
-from flask import Flask, request, render_template, redirect, url_for, jsonify, session, send_from_directory
+import json
+import numpy as np
+from flask import (
+    Flask, request, render_template, redirect, url_for,
+    jsonify, session, send_from_directory, Response
+)
 from werkzeug.utils import secure_filename
 import fitz  # PyMuPDF
 from gensim.models import Word2Vec
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import openai
 from jsonschema import validate, ValidationError
 
-# Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise RuntimeError("Environment variable OPENAI_API_KEY is not set!")
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+# ─── Konfiguration ─────────────────────────────────────────────────────────────
+openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.OpenAI(
+    api_key=openai.api_key,
+    base_url="https://chat-ai.academiccloud.de/v1"
+)
 
-# In-memory cache for Embedder instances per session
-embedders = {}
-
-# Flask App Setup
-app = Flask(__name__, template_folder='templates', static_folder='static')
+app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.urandom(24)
-UPLOAD_FOLDER = tempfile.gettempdir()
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'pdf'}
+app.config["UPLOAD_FOLDER"] = tempfile.gettempdir()
+ALLOWED_EXTENSIONS = {"pdf"}
 
-# JSON Schema for /api/ask
 SCHEMA_ASK = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
-    "properties": {"query": {"type": "string"}},
-    "required": ["query"]
+    "properties": {
+        "query":  {"type": "string"},
+        "source": {"type": "string", "enum": ["1", "2", "both"]}
+    },
+    "required": ["query", "source"]
 }
 
-# Helpers
-def allowed_file(filename):
-    return filename.lower().endswith('.pdf')
+# ─── Hilfsfunktionen ────────────────────────────────────────────────────────────
+def allowed_file(fn):
+    return fn.lower().endswith(".pdf")
 
 def extract_text(path):
     doc = fitz.open(path)
     return "\n".join(page.get_text() for page in doc)
 
 def chunk_text(text, max_len=500):
-    paras = [p.strip() for p in text.split('\n\n') if p.strip()]
-    chunks, buffer = [], ''
+    paras, chunks, buf = [p.strip() for p in text.split("\n\n") if p.strip()], [], ""
     for p in paras:
-        if len(buffer) + len(p) < max_len:
-            buffer += ' ' + p
+        if len(buf) + len(p) < max_len:
+            buf += " " + p
         else:
-            chunks.append(buffer.strip())
-            buffer = p
-    if buffer:
-        chunks.append(buffer.strip())
+            chunks.append(buf.strip())
+            buf = p
+    if buf:
+        chunks.append(buf.strip())
     return chunks
 
+# ─── Optimierter Embedder ───────────────────────────────────────────────────────
 class Embedder:
     def __init__(self, docs):
         self.docs = docs
         self.vec = CountVectorizer().fit(docs)
+        tfidf_matrix = self.vec.transform(docs).toarray()
         sentences = [d.split() for d in docs]
         self.w2v = Word2Vec(sentences, vector_size=100, window=5, min_count=1, workers=2)
+        w2v_dim = self.w2v.vector_size
+        w2v_matrix = np.zeros((len(docs), w2v_dim))
+        for i, chunk in enumerate(docs):
+            words = [w for w in chunk.split() if w in self.w2v.wv]
+            if words:
+                w2v_matrix[i] = np.mean([self.w2v.wv[w] for w in words], axis=0)
+        self.tfidf_matrix = tfidf_matrix
+        self.w2v_matrix   = w2v_matrix
 
-    def embed(self, doc):
-        v1 = self.vec.transform([doc]).toarray()[0]
-        words = [w for w in doc.split() if w in self.w2v.wv]
-        v2 = sum(self.w2v.wv[w] for w in words) / len(words) if words else [0]*self.w2v.vector_size
-        return v1, v2
+    def embed(self, query):
+        q_tfidf = self.vec.transform([query]).toarray()[0]
+        words = [w for w in query.split() if w in self.w2v.wv]
+        if words:
+            q_w2v = np.mean([self.w2v.wv[w] for w in words], axis=0)
+        else:
+            q_w2v = np.zeros(self.w2v.vector_size)
+        return q_tfidf, q_w2v
 
-# Routes
-@app.route('/')
-def index():
-    return redirect(url_for('upload'))
+embedders = {}
 
-@app.route('/upload', methods=['GET', 'POST'])
+# ─── Upload erste PDF ───────────────────────────────────────────────────────────
+@app.route("/", methods=["GET", "POST"])
+@app.route("/upload", methods=["GET", "POST"])
 def upload():
-    if request.method == 'POST':
-        file = request.files.get('file')
-        if not file or not allowed_file(file.filename):
-            return render_template('upload.html', error='Bitte lade eine gültige PDF-Datei hoch.')
-        filename = secure_filename(file.filename)
-        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(path)
+    if request.method == "POST":
+        f = request.files.get("file")
+        if not f or not allowed_file(f.filename):
+            return render_template("upload.html", error="Ungültige PDF.")
+        fn = secure_filename(f.filename)
+        path = os.path.join(app.config["UPLOAD_FOLDER"], fn)
+        f.save(path)
 
-        text = extract_text(path)
-        chunks = chunk_text(text)
-        embedder = Embedder(chunks)
+        chunks1 = chunk_text(extract_text(path))
+        session["len1"]        = len(chunks1)
+        session["filename"]    = fn
+        session.pop("filename2", None)
+        session["uid"]         = str(uuid.uuid4())
+        session["histories"]   = {fn: []}
+        session["current_pdf"] = fn
+        embedders[session["uid"]] = Embedder(chunks1)
 
-        session_id = str(uuid.uuid4())
-        session['uid'] = session_id
-        session['filename'] = filename
-        session['chat'] = []
-        embedders[session_id] = embedder
-        return redirect(url_for('chat'))
-    return render_template('upload.html')
+        return redirect(url_for("chat"))
+    return render_template("upload.html")
 
-@app.route('/pdf/<filename>')
+# ─── Upload zweite PDF ──────────────────────────────────────────────────────────
+@app.route("/upload2", methods=["POST"])
+def upload2():
+    f = request.files.get("file")
+    if not f or not allowed_file(f.filename):
+        return ("", 400)
+    fn2 = secure_filename(f.filename)
+    path = os.path.join(app.config["UPLOAD_FOLDER"], fn2)
+    f.save(path)
+
+    chunks2 = chunk_text(extract_text(path))
+    session["filename2"]      = fn2
+    session["histories"][fn2] = []  # eigene Historie
+    # session["current_pdf"] bleibt unverändert
+
+    uid = session["uid"]
+    first_chunks = embedders[uid].docs
+    embedders[uid] = Embedder(first_chunks + chunks2)
+    return ("", 204)
+
+# ─── PDF-Viewer ────────────────────────────────────────────────────────────────
+@app.route("/pdf/<filename>")
 def pdf_view(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
-@app.route('/chat')
+# ─── Chat-Seite ─────────────────────────────────────────────────────────────────
+@app.route("/chat")
 def chat():
-    uid = session.get('uid')
-    if not uid or uid not in embedders:
-        return redirect(url_for('upload'))
-    return render_template('chat.html')
+    if "uid" not in session or session["uid"] not in embedders:
+        return redirect(url_for("upload"))
+    selected = request.args.get("pdf", session.get("current_pdf"))
+    session["current_pdf"] = selected
+    history = session["histories"].get(selected, [])
+    return render_template("chat.html", history=history, current=selected)
 
-@app.route('/api/ask', methods=['POST'])
+# ─── API: Frage beantworten ─────────────────────────────────────────────────────
+@app.route("/api/ask", methods=["POST"])
 def api_ask():
+    data = request.get_json(force=True)
     try:
-        data = request.get_json(force=True)
         validate(instance=data, schema=SCHEMA_ASK)
-    except (ValidationError, Exception) as e:
+    except ValidationError as e:
         return jsonify(error=str(e)), 400
 
-    uid = session.get('uid')
-    embedder = embedders.get(uid)
-    if not embedder:
-        return jsonify(error='Kein Dokument geladen'), 400
+    query, source = data["query"], data["source"]
+    uid = session["uid"]
+    emb = embedders[uid]
+    all_chunks = emb.docs
+    len1 = session["len1"]
 
-    query = data['query']
-    qc, qw = embedder.embed(query)
-    scores = []
-    for chunk in embedder.docs:
-        cc = embedder.vec.transform([chunk]).toarray()[0]
-        words = [w for w in chunk.split() if w in embedder.w2v.wv]
-        cw = sum(embedder.w2v.wv[w] for w in words)/len(words) if words else [0]*embedder.w2v.vector_size
-        scores.append(cosine_similarity([qc],[cc])[0][0] + cosine_similarity([qw],[cw])[0][0])
+    qc, qw = emb.embed(query)
 
-    # Top 3 Chunks verwenden
-    top_n = 3
-    top_idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_n]
-    top_chunks = [embedder.docs[i] for i in top_idxs]
+    def batch_scores(q_tfidf, q_w2v, tfidf_mat, w2v_mat):
+        return tfidf_mat.dot(q_tfidf) + w2v_mat.dot(q_w2v)
 
-    # Prompt-Engineering für präzise Antworten
+    if source == "1":
+        mat_tf = emb.tfidf_matrix[:len1]
+        mat_w2 = emb.w2v_matrix[:len1]
+        idxs  = np.argsort(-batch_scores(qc, qw, mat_tf, mat_w2))[:3]
+        ctx_chunks = [all_chunks[i] for i in idxs]
+
+    elif source == "2":
+        mat_tf = emb.tfidf_matrix[len1:]
+        mat_w2 = emb.w2v_matrix[len1:]
+        idxs  = np.argsort(-batch_scores(qc, qw, mat_tf, mat_w2))[:3]
+        ctx_chunks = [all_chunks[len1 + i] for i in idxs]
+
+    else:  # both: getrennt Top-3 aus PDF1 und Top-3 aus PDF2
+        # PDF1
+        mat1_tf = emb.tfidf_matrix[:len1]
+        mat1_w2 = emb.w2v_matrix[:len1]
+        idx1    = np.argsort(-batch_scores(qc, qw, mat1_tf, mat1_w2))[:3]
+        top1    = [all_chunks[i] for i in idx1]
+        # PDF2
+        mat2_tf = emb.tfidf_matrix[len1:]
+        mat2_w2 = emb.w2v_matrix[len1:]
+        idx2    = np.argsort(-batch_scores(qc, qw, mat2_tf, mat2_w2))[:3]
+        top2    = [all_chunks[len1 + i] for i in idx2]
+
+        ctx_chunks = (
+            ["=== PDF 1 Auszüge ===", *top1, "", "=== PDF 2 Auszüge ===", *top2]
+        )
+
+    context = "\n\n".join(ctx_chunks)
+    prompt  = f"{context}\n\nFrage: {query}"
+
     system_msg = {
         "role": "system",
         "content": (
-            "You are a precise, concise assistant. "
-            "Answer *only* based on the provided excerpts in no more than 5 sentences."
+            "Du erhältst Auszüge aus ein oder zwei Dokumenten. "
+            "Beantworte stets präzise anhand des Kontexts. "
+            "Bei Quelle „both“ vergleiche PDF 1 und PDF 2."
         )
     }
-    user_msg = {
-        "role": "user",
-        "content": (
-            "Use these excerpts to answer the question:\n---\n" +
-            "\n---\n".join(top_chunks) +
-            f"\n\nQuestion: {query}"
-        )
-    }
+    user_msg = {"role": "user", "content": prompt}
 
     resp = client.chat.completions.create(
-        model='gpt-3.5-turbo',
+        model="meta-llama-3.1-8b-instruct",
         messages=[system_msg, user_msg],
-        max_tokens=200,
+        max_tokens=500,
         temperature=0.2
     )
     answer = resp.choices[0].message.content.strip()
 
-    chat = session['chat']
-    chat.append({'role': 'User', 'text': query})
-    chat.append({'role': 'Assistant', 'text': answer})
-    session['chat'] = chat
-    return jsonify(chat=chat)
+    current = session["current_pdf"]
+    hist = session["histories"].setdefault(current, [])
+    hist.append({"role": "User",      "text": query})
+    hist.append({"role": "Assistant", "text": answer})
+    session.modified = True
 
-if __name__ == '__main__':
+    return jsonify(chat=hist)
+
+# ─── Download Chat-Log ─────────────────────────────────────────────────────────
+@app.route("/download")
+def download_chat():
+    hist = session["histories"].get(session["current_pdf"], [])
+    data = json.dumps(hist, ensure_ascii=False, indent=2)
+    return Response(
+        data,
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment;filename=chat_log.json"}
+    )
+
+if __name__ == "__main__":
     app.run(debug=True, port=5000)
