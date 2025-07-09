@@ -44,7 +44,7 @@
       border-radius: 1rem; max-width: 75%;
       font-size: .95rem; line-height: 1.4;
     }
-    .form-control, .btn-send, .btn-download, .btn-back {
+    .form-control, .btn-send, .btn-action {
       border-radius: 2rem; font-size: .95rem;
     }
     .btn-send {
@@ -52,9 +52,12 @@
       border: none; padding: .75rem 1.5rem;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    .btn-download, .btn-back {
-      background: #6c757d; color: #fff;
+    .btn-action {
+      background: #1976d2; color: #fff;
       padding: .5rem 1rem; margin-left: .5rem;
+    }
+    .btn-action:hover {
+      background: #155fa0;
     }
   </style>
 </head>
@@ -87,7 +90,6 @@
       <div class="col-lg-5 d-flex flex-column">
         <div class="chat-header">Chat</div>
         <div id="chat-box" class="chat-box flex-grow-1 mb-3">
-          {# Vorhandene History beim Laden anzeigen #}
           {% for m in history %}
             <div class="message {{ m.role == 'User' and 'user' or 'assistant' }}">
               <div class="text">{{ m.text.replace('\n','<br>')|safe }}</div>
@@ -107,10 +109,11 @@
           <button class="btn-send">Senden</button>
         </form>
 
-        <!-- Untere Leiste: Download + Zurück -->
-        <div class="text-end">
-          <a href="{{ url_for('download_chat') }}" class="btn btn-download">Chatprotokoll herunterladen</a>
-          <a href="{{ url_for('upload') }}" class="btn btn-back">Zurück zum Startbildschirm</a>
+        <!-- Untere Leiste: Buttons rechts bündig -->
+        <div class="d-flex justify-content-end">
+          <a href="{{ url_for('download_chat') }}" class="btn btn-action">Chatprotokoll herunterladen</a>
+          <a href="{{ url_for('download_keypoints') }}" class="btn btn-action">Key-Points herunterladen</a>
+          <a href="{{ url_for('upload') }}" class="btn btn-action">Zurück zum Startbildschirm</a>
         </div>
       </div>
     </div>
