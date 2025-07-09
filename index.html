@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Chat</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>PDF Chat</h2>
+        <button id="newChatBtn" class="new-chat-btn">+ Neuer Chat</button>
+      </div>
+      <div id="chatList" class="chat-history"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="chat-container">
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-input-container">
+          <div class="chat-input-wrapper">
+            <textarea id="chatInput" placeholder="Stelle eine Frage zu deinem PDF..." rows="1"></textarea>
+            <button class="send-button" id="sendButton">➤</button>
+          </div>
+          <div class="source-export-container">
+            <div>
+              <label><input type="radio" name="sourceSelect" value="1" id="source1" checked> PDF 1</label>
+              <label><input type="radio" name="sourceSelect" value="2" id="source2"> PDF 2</label>
+              <label><input type="radio" name="sourceSelect" value="both" id="sourceB"> Beide</label>
+            </div>
+            <div class="export-buttons">
+              <button class="btn light" id="exportKeypointsBtn">Export Keypoints</button>
+              <button class="btn light" id="exportChatBtn">Export Chat</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-sidebar">
+      <div id="uploadContainer"></div>
+
+      <template id="uploadTemplate">
+        <div class="upload-preview-section">
+          <div class="upload-area" id="uploadArea{NUM}">
+            <div class="upload-text">PDF hier ablegen oder klicken</div>
+            <div class="upload-hint">Nur PDF-Dateien</div>
+            <input type="file" id="fileInput{NUM}" accept="application/pdf" hidden />
+          </div>
+          <div class="pdf-preview" id="pdfPreview{NUM}">
+            <object id="pdfObject{NUM}" type="application/pdf" width="100%" height="300px"></object>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

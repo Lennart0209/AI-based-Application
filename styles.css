@@ -1,0 +1,378 @@
+
+/* Grund-Styles für den Body */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #0f0f0f; 
+    color: #ffffff;           
+    height: 100vh;             
+    overflow: hidden;        
+}
+
+/* Container für die ganze App - flexbox zum nebeneinander anordnen */
+.app-container {
+    display: flex;
+    height: 100vh;   
+    overflow: hidden; 
+}
+
+/* Linke Sidebar, wo der Chatverlauf ist */
+.sidebar {
+    width: 300px;
+    background-color: #171717;
+    border-right: 1px solid #2a2a2a; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Kopfbereich in Sidebar */
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+/* Überschrift in Sidebar */
+.sidebar-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #ffffff;
+}
+
+/* Neuer Chat Button */
+.new-chat-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: #2a2a2a;
+    border: 1px solid #404040;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px; 
+    transition: all 0.2s ease; 
+}
+
+/* Bereich für Chat-Verlauf */
+.chat-history {
+    flex: 1; 
+    padding: 20px;
+    overflow-y: auto; 
+}
+
+/* Überschrift im Chat-Verlauf */
+.chat-history h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #888888; 
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Liste der einzelnen Chats */
+.chat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; 
+}
+
+/* Einzelner Chat-Eintrag */
+.chat-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent; 
+}
+
+
+/* Aktiver Chat wird hervorgehoben */
+.chat-item.active {
+    background-color: #2a2a2a;
+    border-color: #0ea5e9; 
+}
+
+/* Titel im Chat-Eintrag */
+.chat-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff;
+    margin-bottom: 4px;
+    overflow: hidden; 
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Datum im Chat-Eintrag */
+.chat-date {
+    font-size: 12px;
+    color: #888888;
+}
+
+/* Hauptbereich in der Mitte, wo der Chat ist */
+.main-content {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    background-color: #0f0f0f; 
+    overflow: hidden;
+    padding: 0 20px;
+}
+
+/* Container für den Chat */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0;
+    position: relative;
+    min-height: 0; 
+}
+
+/* Bereich, wo die Nachrichten angezeigt werden */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto; 
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px; 
+    min-height: 0; 
+}
+
+/* Bereich für Texteingabe und Buttons unten */
+.chat-input-container {
+    flex-shrink: 0; 
+    padding: 20px 0;
+    border-top: 1px solid #2a2a2a; 
+    background-color: #0f0f0f;
+}
+
+/* Wrapper für Input und Senden Button */
+.chat-input-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 12px;
+    transition: border-color 0.2s ease;
+}
+
+/* Eingabefeld selbst */
+#chatInput {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none; 
+    outline: none; 
+    max-height: 120px;
+    font-family: inherit;
+}
+
+/* Platzhalter Text Farbe */
+#chatInput::placeholder {
+    color: #888888;
+}
+
+
+/* Button zum Senden */
+.send-button {
+    background-color: #0ea5e9;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+/* Container für Quelle auswählen und Export Buttons */
+.source-export-container {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-top: 10px;
+}
+
+/* Labels für Radiobuttons */
+.source-selection label {
+    margin-right: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #888;
+}
+
+/* Export Buttons nebeneinander */
+.export-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+/* Stil für light Buttons */
+.btn.light {
+    background-color: #bbb;
+    color: #222;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #404040;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #606060;
+}
+
+/* Rechte Sidebar für Upload & Vorschau */
+.preview-sidebar {
+    width: 600px;
+    background-color: #171717;
+    border-left: 1px solid #2a2a2a;
+    padding: 15px 25px;
+    color: #ccc;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* Container für Upload und Vorschau Sektionen */
+.upload-preview-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    overflow-y: auto;
+}
+
+/* Jede Upload Sektion */
+.upload-preview-section {
+    background-color: #1a1a1a;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+/* Bereich zum PDF hochladen */
+.upload-area {
+    border: 2px dashed #404040;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: #202020;
+}
+
+/* Inhalt im Upload Bereich (Icon, Text) */
+.upload-content svg {
+    color: #606060;
+    margin-bottom: 12px;
+}
+
+.upload-content p {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #fff;
+}
+
+.upload-hint {
+    font-size: 12px;
+    color: #888888;
+}
+
+/* Anzeige der hochgeladenen Datei */
+.uploaded-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+/* Chat Blasen Styling */
+.message {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    max-width: 80%;
+}
+
+/* Benutzer Nachricht rechts ausrichten */
+.message.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+/* Antwort vom Assistent links */
+.message.assistant {
+    align-self: flex-start;
+}
+
+/* Avatar Kreis */
+.message-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #0ea5e9;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+/* Avatar Farbe für Nutzer */
+.message.user .message-avatar {
+    background-color: #2a2a2a;
+    color: #ccc;
+}
+
+/* Text Inhalt in Chat-Blase */
+.message-content {
+    background-color: #1a1a1a;
+    border-radius: 16px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+/* Benutzer Nachricht anders einfärben */
+.message.user .message-content {
+    background-color: #0ea5e9;
+    color: #000;
+}
